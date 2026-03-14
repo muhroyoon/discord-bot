@@ -2,7 +2,12 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
-TOKEN = "MTQ4MjI2NDAxMzE5NzkzODg0Mg.GyUqxb.FZw8QFN4g44TxMr1XKnGtcodom8l1ukcBpxCaU"
+import os
+import discord
+from discord.ext import commands
+from discord import app_commands
+
+TOKEN = os.getenv("TOKEN")
 
 intents = discord.Intents.default()
 intents.voice_states = True
