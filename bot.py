@@ -3,10 +3,6 @@ from discord.ext import commands
 from discord import app_commands
 
 import os
-import discord
-from discord.ext import commands
-from discord import app_commands
-
 TOKEN = os.getenv("TOKEN")
 
 intents = discord.Intents.default()
