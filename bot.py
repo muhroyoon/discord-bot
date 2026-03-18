@@ -13,6 +13,7 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# {channel_id: {"message_id": int, "host_id": int}}
 active_recruits = {}
 
 
@@ -22,7 +23,6 @@ def count_members(channel):
     spectators = 0
 
     for member in channel.members:
-
         if "[📺관전중]" in member.display_name:
             spectators += 1
         else:
@@ -32,21 +32,15 @@ def count_members(channel):
 
 
 def make_bar(players):
-
-    filled = "█" * players
-    empty = "□" * (MAX_PLAYERS - players)
-
-    return filled + empty
+    return "█" * players + "□" * (MAX_PLAYERS - players)
 
 
 def get_color(remain):
 
     if remain <= 0:
         return 0xff0000
-
     elif remain == 1:
         return 0xffcc00
-
     else:
         return 0x00ff00
 
@@ -57,52 +51,6 @@ class Recruit(discord.ui.View):
         super().__init__(timeout=None)
         self.channel = channel
         self.host = host
-        self.message = None
-
-    async def update_embed(self):
-
-        players, spectators = count_members(self.channel)
-
-        remain = MAX_PLAYERS - players
-
-        bar = make_bar(players)
-
-        color = get_color(remain)
-
-        embed = self.message.embeds[0]
-
-        embed.color = color
-
-        embed.description = f"""
-👤 모집자 : {self.host.mention}
-🔊 채널 : {self.channel.name}
-
-👥 플레이어 : {players} / {MAX_PLAYERS}
-📺 관전자 : {spectators}
-
-{bar}
-
-🪑 남은 자리 : {remain}
-"""
-
-        await self.message.edit(embed=embed, view=self)
-
-        if players >= MAX_PLAYERS:
-            await self.auto_close()
-
-    async def auto_close(self):
-
-        embed = self.message.embeds[0]
-        embed.title = "🎮 PUBG 모집 종료"
-        embed.color = 0xff0000
-
-        for item in self.children:
-            item.disabled = True
-
-        await self.message.edit(embed=embed, view=self)
-
-        if self.channel.id in active_recruits:
-            del active_recruits[self.channel.id]
 
     @discord.ui.button(label="참가하기", style=discord.ButtonStyle.green)
     async def join(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -124,7 +72,23 @@ class Recruit(discord.ui.View):
             )
             return
 
-        await self.auto_close()
+        # 메시지 직접 가져오기
+        data = active_recruits.get(self.channel.id)
+        if not data:
+            return
+
+        try:
+            msg = await interaction.channel.fetch_message(data["message_id"])
+        except:
+            return
+
+        embed = msg.embeds[0]
+        embed.title = "🎮 PUBG 모집 종료"
+        embed.color = 0xff0000
+
+        await msg.edit(embed=embed, view=None)
+
+        del active_recruits[self.channel.id]
 
         await interaction.response.defer()
 
@@ -157,9 +121,7 @@ async def recruit(interaction: discord.Interaction, message: str):
     players, spectators = count_members(voice_channel)
 
     remain = MAX_PLAYERS - players
-
     bar = make_bar(players)
-
     color = get_color(remain)
 
     embed = discord.Embed(
@@ -186,9 +148,11 @@ async def recruit(interaction: discord.Interaction, message: str):
 
     msg = await interaction.original_response()
 
-    view.message = msg
-
-    active_recruits[voice_channel.id] = view
+    # 🔥 메시지 기반으로 저장 (핵심)
+    active_recruits[voice_channel.id] = {
+        "message_id": msg.id,
+        "host_id": interaction.user.id
+    }
 
 
 @bot.event
@@ -204,15 +168,63 @@ async def on_voice_state_update(member, before, after):
 
     for channel in channels:
 
-        if channel.id in active_recruits:
+        if channel.id not in active_recruits:
+            continue
 
-            view = active_recruits[channel.id]
+        data = active_recruits[channel.id]
 
-            if view.host not in channel.members:
-                await view.auto_close()
-                return
+        try:
+            text_channel = channel.guild.system_channel or channel.guild.text_channels[0]
+            msg = await text_channel.fetch_message(data["message_id"])
+        except:
+            continue
 
-            await view.update_embed()
+        players, spectators = count_members(channel)
+        remain = MAX_PLAYERS - players
+        bar = make_bar(players)
+        color = get_color(remain)
+
+        embed = msg.embeds[0]
+
+        # 🔥 모집자 나갔는지 체크
+        host_member = channel.guild.get_member(data["host_id"])
+
+        if not host_member or host_member not in channel.members:
+
+            embed.title = "🎮 PUBG 모집 종료"
+            embed.color = 0xff0000
+
+            await msg.edit(embed=embed, view=None)
+
+            del active_recruits[channel.id]
+            return
+
+        # 🔥 인원 다 찼을 때
+        if players >= MAX_PLAYERS:
+
+            embed.title = "🎮 PUBG 모집 종료"
+            embed.color = 0xff0000
+
+            await msg.edit(embed=embed, view=None)
+
+            del active_recruits[channel.id]
+            return
+
+        # 🔥 실시간 업데이트
+        embed.color = color
+        embed.description = f"""
+👤 모집자 : <@{data['host_id']}>
+🔊 채널 : {channel.name}
+
+👥 플레이어 : {players} / {MAX_PLAYERS}
+📺 관전자 : {spectators}
+
+{bar}
+
+🪑 남은 자리 : {remain}
+"""
+
+        await msg.edit(embed=embed)
 
 
 bot.run(TOKEN)
