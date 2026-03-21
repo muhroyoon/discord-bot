@@ -44,11 +44,12 @@ def get_color(remain):
 
 
 class Recruit(discord.ui.View):
-    def __init__(self, channel, host):
+    def __init__(self, channel, host, message_content):
         super().__init__(timeout=None)
         self.channel = channel
         self.host = host
         self.message = None
+        self.message_content = message_content  # 원래 메시지 저장
 
     async def update_embed(self):
         print("📌 update_embed 실행됨")
@@ -69,6 +70,8 @@ class Recruit(discord.ui.View):
 {make_bar(players)}
 
 🪑 남은 자리 : {remain}
+
+💬 {self.message_content}  # 원래 메시지 유지
 """
 
         await self.message.edit(embed=embed, view=self)
@@ -154,7 +157,7 @@ async def recruit(interaction: discord.Interaction, message: str):
         color=get_color(remain)
     )
 
-    view = Recruit(voice_channel, interaction.user)
+    view = Recruit(voice_channel, interaction.user, message)  # 여기서 message 전달
 
     await interaction.response.send_message(embed=embed, view=view)
     msg = await interaction.original_response()
@@ -201,7 +204,7 @@ async def on_voice_state_update(member, before, after):
             print("❌ 메시지 가져오기 실패:", e)
             continue
 
-        view = Recruit(channel, member.guild.get_member(data["host_id"]))
+        view = Recruit(channel, member.guild.get_member(data["host_id"]), "")  # placeholder
         view.message = msg
 
         # 모집자 나갔는지 체크
