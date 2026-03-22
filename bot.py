@@ -154,7 +154,7 @@ async def recruit(interaction: discord.Interaction, message: str):
 
     view = Recruit(voice_channel, interaction.user, message)
 
-    await interaction.response.send_message(embed=embed, view=view)
+    await interaction.response.send_message(content="@here", embed=embed, view=view)
     msg = await interaction.original_response()
 
     view.message = msg
