@@ -22,6 +22,9 @@ def count_members(channel):
     spectators = 0
 
     for member in channel.members:
+        if member.bot:
+            continue  # ✅ 봇 제외
+
         if "[📺관전중]" in member.display_name:
             spectators += 1
         else:
@@ -71,7 +74,7 @@ class Recruit(discord.ui.View):
 
 🪑 남은 자리 : {remain}
 
-💬 {self.message_content}  # 원래 메시지 유지
+💬 {self.message_content}
 """
 
         await self.message.edit(embed=embed, view=self)
@@ -157,7 +160,7 @@ async def recruit(interaction: discord.Interaction, message: str):
         color=get_color(remain)
     )
 
-    view = Recruit(voice_channel, interaction.user, message)  # 여기서 message 전달
+    view = Recruit(voice_channel, interaction.user, message)
 
     await interaction.response.send_message(embed=embed, view=view)
     msg = await interaction.original_response()
@@ -166,7 +169,8 @@ async def recruit(interaction: discord.Interaction, message: str):
 
     active_recruits[voice_channel.id] = {
         "message_id": msg.id,
-        "host_id": interaction.user.id
+        "host_id": interaction.user.id,
+        "message_content": message  # ✅ 추가
     }
 
     print(f"✅ 구인 등록됨 | 채널: {voice_channel.name} | 메시지ID: {msg.id}")
@@ -204,7 +208,11 @@ async def on_voice_state_update(member, before, after):
             print("❌ 메시지 가져오기 실패:", e)
             continue
 
-        view = Recruit(channel, member.guild.get_member(data["host_id"]), "")  # placeholder
+        view = Recruit(
+            channel,
+            member.guild.get_member(data["host_id"]),
+            data["message_content"]  # ✅ 수정
+        )
         view.message = msg
 
         # 모집자 나갔는지 체크
