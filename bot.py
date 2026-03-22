@@ -33,10 +33,6 @@ def count_members(channel):
     return players, spectators
 
 
-def make_bar(players):
-    return "█" * players + "□" * (MAX_PLAYERS - players)
-
-
 def get_color(remain):
     if remain <= 0:
         return 0xff0000
@@ -52,7 +48,7 @@ class Recruit(discord.ui.View):
         self.channel = channel
         self.host = host
         self.message = None
-        self.message_content = message_content  # 원래 메시지 저장
+        self.message_content = message_content
 
     async def update_embed(self):
         print("📌 update_embed 실행됨")
@@ -69,8 +65,6 @@ class Recruit(discord.ui.View):
 
 👥 플레이어 : {players} / {MAX_PLAYERS}
 📺 관전자 : {spectators}
-
-{make_bar(players)}
 
 🪑 남은 자리 : {remain}
 
@@ -151,8 +145,6 @@ async def recruit(interaction: discord.Interaction, message: str):
 👥 플레이어 : {players} / {MAX_PLAYERS}
 📺 관전자 : {spectators}
 
-{make_bar(players)}
-
 🪑 남은 자리 : {remain}
 
 💬 {message}
@@ -170,7 +162,7 @@ async def recruit(interaction: discord.Interaction, message: str):
     active_recruits[voice_channel.id] = {
         "message_id": msg.id,
         "host_id": interaction.user.id,
-        "message_content": message  # ✅ 추가
+        "message_content": message
     }
 
     print(f"✅ 구인 등록됨 | 채널: {voice_channel.name} | 메시지ID: {msg.id}")
@@ -211,7 +203,7 @@ async def on_voice_state_update(member, before, after):
         view = Recruit(
             channel,
             member.guild.get_member(data["host_id"]),
-            data["message_content"]  # ✅ 수정
+            data["message_content"]
         )
         view.message = msg
 
